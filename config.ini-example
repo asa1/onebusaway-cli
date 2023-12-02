@@ -1,0 +1,5 @@
+[Settings]
+color_salt = 13
+sleep_seconds = 30
+stop_code = 1_648
+max_list = 20
