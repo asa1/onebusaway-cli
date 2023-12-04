@@ -24,12 +24,12 @@ def get_stop(url):
     data = response.json()
     return data["data"]["entry"]
 
-def display_bus_info(bus, t, color_salt, name_pad):
+def display_bus_info(bus, t, color_salt, name_pad, time_format):
     name = bus["routeShortName"]
 
     # Use the hash value to pick a color from the 256-color range
     hash_value = int(md5((name * color_salt).encode()).hexdigest(), 16)
-    route_color = hash_value % 256
+    route_color = (hash_value % 207) + 21
 
     scheduled_time = bus["scheduledArrivalTime"]
     predicted_time = bus["predictedArrivalTime"]
@@ -37,7 +37,13 @@ def display_bus_info(bus, t, color_salt, name_pad):
     now_epoch = int(time.time()) * 1000
     time_from_now = round((predicted_time - now_epoch) / 60000) if predicted_time else round((scheduled_time - now_epoch) / 60000)
     arrival_time = predicted_time if predicted_time else scheduled_time
-    formatted_time = datetime.fromtimestamp(arrival_time / 1000).strftime("%H:%M")
+    if time_format == 12:
+        formatted_time = datetime.fromtimestamp(arrival_time / 1000).strftime("%-I:%M%p").rjust(7).lower()
+    elif time_format == 24:
+        formatted_time = datetime.fromtimestamp(arrival_time / 1000).strftime("%H:%M")
+    else:
+        print(f"Time format {time_format} invalid, expecting 12 or 24")
+        raise
 
     if predicted_time == 0:
         arrival_text = 'Scheduled: '
@@ -66,7 +72,7 @@ def display_bus_info(bus, t, color_salt, name_pad):
     route_text = t.bold(t.color(route_color)(f"{name.rjust(name_pad)}"))
     time_text = t.color(status_color)(f"{time_from_now}min".rjust(6))
     formatted_time_text = t.color(110)(f"{formatted_time}")
-    print(f"┃ {route_text} ┃ {formatted_time_text} ┃ {arrival_text}{time_text} {delta_text}")
+    print(f" ┃ {route_text} ┃ {formatted_time_text} ┃ {arrival_text}{time_text} {delta_text}")
 
 if __name__ == "__main__":
     config = configparser.ConfigParser()
@@ -76,6 +82,8 @@ if __name__ == "__main__":
         'stop_code': '1_860',
         'sleep_seconds': '20',
         'color_salt': 1,
+        'minutes_after': 240,
+        'time_format': 24,
     }
     config_path = os.path.expanduser('~/.config/onebuscli')
     config.read(os.path.join(config_path, 'config.ini'))
@@ -87,7 +95,9 @@ if __name__ == "__main__":
     stop_code = config.get('Settings', 'stop_code', fallback=defaults['stop_code'])
     # color_salt allows changing random set of colors (use any integer):
     color_salt = int(config.get('Settings', 'color_salt', fallback=defaults['color_salt']))
-    arrivals_url = f"{api_server}/api/where/arrivals-and-departures-for-stop/{stop_code}.json?key={api_key}&minutesAfter=240&_=1701366161699"
+    minutes_after = int(config.get('Settings', 'minutes_after', fallback=defaults['minutes_after']))
+    time_format = int(config.get('Settings', 'time_format', fallback=defaults['time_format']))
+    arrivals_url = f"{api_server}/api/where/arrivals-and-departures-for-stop/{stop_code}.json?key={api_key}&minutesAfter={minutes_after}&_=1701366161699"
     stop_url = f"{api_server}/api/where/stop/{stop_code}.json?key={api_key}"
     stop_info = get_stop(stop_url)
     t = Terminal()
@@ -97,13 +107,6 @@ if __name__ == "__main__":
             while True:
                 print(t.move_y(0))
                 buses = get_bus_arrivals(arrivals_url)
-                try:
-                    # If set, max_list will only list the upcoming <max_list> number of buses:
-                    max_list = int(config.get('Settings', 'max_list'))
-                    del buses[max_list:]
-                except:
-                    pass
-                name_pad = max(len(bus['routeShortName']) for bus in buses)
                 match stop_info['direction']:
                     case "N":
                         direction_name = 'North'
@@ -121,11 +124,23 @@ if __name__ == "__main__":
                         direction_name = 'West'
                     case "NW":
                         direction_name = 'Northwest'
+                    case "":
+                        direction_name = ''
                 stop_name_text = t.bold(t.color(135)(f"{stop_info['name']}"))
                 stop_direction_text = t.bold(t.color(123)(f"{direction_name}"))
-                print(f"{stop_name_text}: {stop_direction_text}\n")  
-                for bus in buses:
-                    display_bus_info(bus, t, color_salt, name_pad)
+                print(f" {stop_name_text}: {stop_direction_text}\n")  
+                if len(buses) == 0:
+                    print(f" No scheduled stops in the next {minutes_after} minutes")
+                else:
+                    try:
+                        # If set, max_list will only list the upcoming <max_list> number of buses:
+                        max_list = int(config.get('Settings', 'max_list'))
+                        del buses[max_list:]
+                    except:
+                        pass
+                    name_pad = max(len(bus['routeShortName']) for bus in buses)
+                    for bus in buses:
+                        display_bus_info(bus, t, color_salt, name_pad, time_format)
                 time.sleep(config.getint('General', 'sleep_seconds', fallback=int(defaults['sleep_seconds'])))
     except KeyboardInterrupt:
         pass
