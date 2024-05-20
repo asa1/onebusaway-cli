@@ -1,7 +1,11 @@
-[Settings]
+[Default]
+stop_code = 1_648
 color_salt = 13
 sleep_seconds = 30
-stop_code = 1_648
 max_list = 20
 minutes_after = 240
 time_format = 12
+
+[AlternateStop]
+stop_code = 1_1672
+color_salt = 11
