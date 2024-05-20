@@ -112,19 +112,22 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description='OneBusAway CLI Stop Monitor')
     parser.add_argument('-c', '--config', default=default_config_path, help='Config file path. Default path is ~/.config/onebuscli/config.ini')
+    parser.add_argument('-s', '--stop', help='Stop section name from config. Defaults to \'Default\'')
     args = parser.parse_args()
 
     config.read(args.config)
-    api_server = config.get('Settings', 'api_server', fallback=defaults['api_server'])
-    api_key = config.get('Settings', 'api_key', fallback=defaults['api_key'])
 
     # Stop codes for Puget Sound can be found by searching for addresses here: https://pugetsound.onebusaway.org/m/
     # (Look for something in the format of <short integer>_<long integer>. For example, Seattle bus stops are 1_<stop number>
-    stop_code = config.get('Settings', 'stop_code', fallback=defaults['stop_code'])
+    selected_stop = args.stop if args.stop in config.sections() else 'Default'
+    stop_code = config.get(selected_stop, 'stop_code', fallback=defaults['stop_code'])
     # color_salt allows changing random set of colors (use any integer):
-    color_salt = int(config.get('Settings', 'color_salt', fallback=defaults['color_salt']))
-    minutes_after = int(config.get('Settings', 'minutes_after', fallback=defaults['minutes_after']))
-    time_format = int(config.get('Settings', 'time_format', fallback=defaults['time_format']))
+    color_salt = int(config.get(selected_stop, 'color_salt', fallback=defaults['color_salt']))
+    minutes_after = int(config.get(selected_stop, 'minutes_after', fallback=defaults['minutes_after']))
+    time_format = int(config.get(selected_stop, 'time_format', fallback=defaults['time_format']))
+    api_server = config.get(selected_stop, 'api_server', fallback=defaults['api_server'])
+    api_key = config.get(selected_stop, 'api_key', fallback=defaults['api_key'])
+
     arrivals_url = f"{api_server}/api/where/arrivals-and-departures-for-stop/{stop_code}.json?key={api_key}&minutesAfter={minutes_after}&_=1701366161699"
     stop_url = f"{api_server}/api/where/stop/{stop_code}.json?key={api_key}"
     stop_info = get_stop(stop_url)
@@ -144,13 +147,13 @@ if __name__ == "__main__":
                 else:
                     try:
                         # If set, max_list will only list the upcoming <max_list> number of buses:
-                        max_list = int(config.get('Settings', 'max_list'))
+                        max_list = int(config.get(selected_stop, 'max_list'))
                         del buses[max_list:]
                     except:
                         pass
                     name_pad = max(len(bus['routeShortName']) for bus in buses)
                     for bus in buses:
                         display_bus_info(bus, t, color_salt, name_pad, time_format)
-                time.sleep(config.getint('General', 'sleep_seconds', fallback=int(defaults['sleep_seconds'])))
+                time.sleep(config.getint(selected_stop, 'sleep_seconds', fallback=int(defaults['sleep_seconds'])))
     except KeyboardInterrupt:
         pass
