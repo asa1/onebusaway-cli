@@ -1,8 +1,31 @@
 #!/usr/bin/env python3
-import requests, time, os, configparser
+import requests, time, os, configparser, argparse
 from datetime import datetime
 from hashlib import md5
 from blessings import Terminal
+
+#Convert direction abbrevation to word:
+def human_direction(direction):
+    match direction:
+        case "N":
+            direction_name = 'North'
+        case "NE":
+            direction_name = 'Northeast'
+        case "E":
+            direction_name = 'East'
+        case "SE":
+            direction_name = 'Southeast'
+        case "S":
+            direction_name = 'South'
+        case "SW":
+            direction_name = 'Southwest'
+        case "W":
+            direction_name = 'West'
+        case "NW":
+            direction_name = 'Northwest'
+        case "":
+            direction_name = ''
+    return direction_name
 
 #Get bus arrivals at a stop:
 def get_bus_arrivals(url):
@@ -85,8 +108,13 @@ if __name__ == "__main__":
         'minutes_after': 240,
         'time_format': 24,
     }
-    config_path = os.path.expanduser('~/.config/onebuscli')
-    config.read(os.path.join(config_path, 'config.ini'))
+    default_config_path = os.path.expanduser('~/.config/onebuscli/config.ini')
+
+    parser = argparse.ArgumentParser(description='OneBusAway CLI Stop Monitor')
+    parser.add_argument('-c', '--config', default=default_config_path, help='Config file path. Default path is ~/.config/onebuscli/config.ini')
+    args = parser.parse_args()
+
+    config.read(args.config)
     api_server = config.get('Settings', 'api_server', fallback=defaults['api_server'])
     api_key = config.get('Settings', 'api_key', fallback=defaults['api_key'])
 
@@ -107,25 +135,7 @@ if __name__ == "__main__":
             while True:
                 print(t.move_y(0))
                 buses = get_bus_arrivals(arrivals_url)
-                match stop_info['direction']:
-                    case "N":
-                        direction_name = 'North'
-                    case "NE":
-                        direction_name = 'Northeast'
-                    case "E":
-                        direction_name = 'East'
-                    case "SE":
-                        direction_name = 'Southeast'
-                    case "S":
-                        direction_name = 'South'
-                    case "SW":
-                        direction_name = 'Southwest'
-                    case "W":
-                        direction_name = 'West'
-                    case "NW":
-                        direction_name = 'Northwest'
-                    case "":
-                        direction_name = ''
+                direction_name = human_direction(stop_info['direction'])
                 stop_name_text = t.bold(t.color(135)(f"{stop_info['name']}"))
                 stop_direction_text = t.bold(t.color(123)(f"{direction_name}"))
                 print(f" {stop_name_text}: {stop_direction_text}\n")  
