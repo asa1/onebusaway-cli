@@ -2,7 +2,7 @@
 import requests, time, os, configparser, argparse
 from datetime import datetime
 from hashlib import md5
-from blessings import Terminal
+from blessed import Terminal
 
 #Convert direction abbrevation to word:
 def human_direction(direction):
