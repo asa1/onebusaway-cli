@@ -2,7 +2,7 @@
 
 pkgs.mkShell {
   buildInputs = [
-    pkgs.python311Packages.blessed
-    pkgs.python311Packages.requests
+    pkgs.python314Packages.blessed
+    pkgs.python314Packages.requests
   ];
 }
