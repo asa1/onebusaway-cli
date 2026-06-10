@@ -135,6 +135,17 @@ def display_bus_info(bus, t, color_salt, name_pad, time_format):
     formatted_time_text = t.color(110)(f"{formatted_time}")
     print(f" ┃ {route_text} ┃ {formatted_time_text} ┃ {arrival_text}{time_text} {delta_text}")
 
+def wait_for_quit(t, sleep_seconds):
+    deadline = time.monotonic() + sleep_seconds
+    while True:
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            return False
+
+        key = t.inkey(timeout=min(0.1, remaining))
+        if str(key).lower() == 'q':
+            return True
+
 if __name__ == "__main__":
     config = configparser.ConfigParser()
     defaults = {
@@ -202,12 +213,13 @@ if __name__ == "__main__":
     t = Terminal()
     print(t.clear)
     try:
-        with t.hidden_cursor():
+        with t.hidden_cursor(), t.cbreak():
             while True:
                 print(t.move_y(0))
                 buses = get_bus_arrivals(arrivals_url)
                 if buses is None:
-                    time.sleep(sleep_seconds)
+                    if wait_for_quit(t, sleep_seconds):
+                        break
                     continue
 
                 direction_name = human_direction(stop_info.get('direction'))
@@ -223,6 +235,7 @@ if __name__ == "__main__":
                     name_pad = max(len(bus['routeShortName']) for bus in buses)
                     for bus in buses:
                         display_bus_info(bus, t, color_salt, name_pad, time_format)
-                time.sleep(sleep_seconds)
+                if wait_for_quit(t, sleep_seconds):
+                    break
     except KeyboardInterrupt:
         pass
